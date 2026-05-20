@@ -12,6 +12,9 @@ fn main() {
         io::stdin()
             .read_line(&mut command)
             .expect("Couldn't read the input");
+        if command.trim() == "exit" {
+            break;
+        }
 
         println!("{}: command not found", command.trim());
     }
