@@ -13,20 +13,16 @@ fn main() {
             .read_line(&mut command)
             .expect("Couldn't read the input");
 
-        command = command.trim().to_string();
+        let mut parts = command.split_whitespace();
 
-        if command == "exit" {
-            break;
-        }
-
-        let mut cmdline = command.split_whitespace().peekable();
-
-        if *cmdline.peek().unwrap() == "echo" {
-            cmdline.next();
-            cmdline.for_each(|arg| print!("{arg} "));
-            println!();
-        } else {
-            println!("{}: command not found", command);
+        match parts.next() {
+            Some("exit") => break,
+            Some("echo") => {
+                parts.for_each(|arg| print!("{arg} "));
+                println!();
+            }
+            Some(cmd) => println!("{cmd}: command not found"),
+            None => {}
         }
     }
 }
