@@ -12,10 +12,21 @@ fn main() {
         io::stdin()
             .read_line(&mut command)
             .expect("Couldn't read the input");
-        if command.trim() == "exit" {
+
+        command = command.trim().to_string();
+
+        if command == "exit" {
             break;
         }
 
-        println!("{}: command not found", command.trim());
+        let mut cmdline = command.split_whitespace().peekable();
+
+        if *cmdline.peek().unwrap() == "echo" {
+            cmdline.next();
+            cmdline.for_each(|arg| print!("{arg} "));
+            println!();
+        } else {
+            println!("{}: command not found", command);
+        }
     }
 }
