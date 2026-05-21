@@ -8,21 +8,30 @@ fn main() {
         print!("$ ");
         io::stdout().flush().unwrap();
 
-        let mut command: String = String::new();
+        let mut input: String = String::new();
         io::stdin()
-            .read_line(&mut command)
+            .read_line(&mut input)
             .expect("Couldn't read the input");
 
-        let mut parts = command.split_whitespace();
+        let mut args: Vec<&str> = input.split_whitespace().collect();
+        if args.is_empty() {
+            continue;
+        }
+        let command = args.remove(0);
 
-        match parts.next() {
-            Some("exit") => break,
-            Some("echo") => {
-                parts.for_each(|arg| print!("{arg} "));
-                println!();
+        match command {
+            "exit" => break,
+            "echo" => {
+                println!("{}", args.join(" "));
             }
-            Some(cmd) => println!("{cmd}: command not found"),
-            None => {}
+            "type" => {
+                if ["exit", "echo", "type"].contains(&args[0]) {
+                    println!("{} is a shell builtin", args[0]);
+                } else {
+                    println!("{}: not found", args[0]);
+                }
+            }
+            cmd => println!("{cmd}: not found"),
         }
     }
 }
