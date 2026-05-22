@@ -1,3 +1,5 @@
+use is_executable::is_executable;
+use std::env::{split_paths, var};
 #[allow(unused_imports)]
 use std::io::{self, Write};
 
@@ -8,30 +10,43 @@ fn main() {
         print!("$ ");
         io::stdout().flush().unwrap();
 
+        let builtin_commands = ["exit", "echo", "type"];
+
         let mut input: String = String::new();
         io::stdin()
             .read_line(&mut input)
             .expect("Couldn't read the input");
 
-        let mut args: Vec<&str> = input.split_whitespace().collect();
-        if args.is_empty() {
-            continue;
-        }
-        let command = args.remove(0);
+        let command: Vec<&str> = input.split_whitespace().collect();
 
-        match command {
-            "exit" => break,
-            "echo" => {
+        match command.as_slice() {
+            [] => continue,
+            ["exit", ..] => break,
+            ["echo", args @ ..] => {
                 println!("{}", args.join(" "));
             }
-            "type" => {
-                if ["exit", "echo", "type"].contains(&args[0]) {
-                    println!("{} is a shell builtin", args[0]);
+            ["type", cmd, ..] => {
+                if builtin_commands.contains(cmd) {
+                    println!("{} is a shell builtin", cmd);
                 } else {
-                    println!("{}: not found", args[0]);
+                    let paths = var("PATH").unwrap_or_default();
+
+                    let file_path = split_paths(&paths).find_map(|path| {
+                        let file = path.join(cmd);
+                        if file.is_file() && is_executable(&file) {
+                            Some(file)
+                        } else {
+                            None
+                        }
+                    });
+
+                    match file_path {
+                        Some(p) => println!("{cmd} is {}", p.display()),
+                        None => println!("{}: not found", cmd),
+                    }
                 }
             }
-            cmd => println!("{cmd}: not found"),
+            [unknown_cmd, ..] => println!("{unknown_cmd}: not found"),
         }
     }
 }
