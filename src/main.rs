@@ -46,7 +46,9 @@ fn main() {
             }
             [cmd, args @ ..] => match external_command_path(cmd) {
                 Some(exe_path) => {
-                    let _ = Command::new(cmd).args(args).status();
+                    if let Err(e) = Command::new(exe_path).args(args).status() {
+                        eprintln!("{e}");
+                    }
                 }
                 None => println!("{cmd}: not found"),
             },
