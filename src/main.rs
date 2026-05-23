@@ -1,5 +1,5 @@
 use is_executable::is_executable;
-use std::env::{split_paths, var};
+use std::env::{current_dir, set_current_dir, split_paths, var};
 #[allow(unused_imports)]
 use std::io::{self, Write};
 use std::process::Command;
@@ -15,7 +15,7 @@ fn external_command_path(command: &str) -> Option<std::path::PathBuf> {
 
 fn main() {
     let mut input: String = String::new();
-    let builtin_commands = ["exit", "echo", "type", "pwd"];
+    let builtin_commands = ["exit", "echo", "type", "pwd", "cd"];
 
     loop {
         print!("$ ");
@@ -47,7 +47,18 @@ fn main() {
                 }
             }
 
-            ["pwd", ..] => println!("{}", std::env::current_dir().unwrap_or_default().display()),
+            ["pwd", ..] => println!("{}", current_dir().unwrap_or_default().display()),
+
+            ["cd", args @ ..] => {
+                let home_dir = var("HOME").unwrap_or_default();
+                let target = match args.first() {
+                    Some(&"~") | None => home_dir.as_str(),
+                    Some(&path) => path,
+                };
+                if set_current_dir(target).is_err() {
+                    eprintln!("cd: {target}: No such file or directory");
+                };
+            }
 
             [cmd, args @ ..] => match external_command_path(cmd) {
                 Some(_) => {
