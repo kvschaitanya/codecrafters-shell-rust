@@ -15,7 +15,7 @@ fn external_command_path(command: &str) -> Option<std::path::PathBuf> {
 
 fn main() {
     let mut input: String = String::new();
-    let builtin_commands = ["exit", "echo", "type"];
+    let builtin_commands = ["exit", "echo", "type", "pwd"];
 
     loop {
         print!("$ ");
@@ -31,9 +31,11 @@ fn main() {
         match command.as_slice() {
             [] => continue,
             ["exit", ..] => break,
+
             ["echo", args @ ..] => {
                 println!("{}", args.join(" "));
             }
+
             ["type", cmd, ..] => {
                 if builtin_commands.contains(cmd) {
                     println!("{} is a shell builtin", cmd);
@@ -44,6 +46,9 @@ fn main() {
                     }
                 }
             }
+
+            ["pwd", ..] => println!("{}", std::env::current_dir().unwrap_or_default().display()),
+
             [cmd, args @ ..] => match external_command_path(cmd) {
                 Some(exe_path) => {
                     if let Err(e) = Command::new(exe_path).args(args).status() {
