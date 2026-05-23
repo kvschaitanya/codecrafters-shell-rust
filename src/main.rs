@@ -2,17 +2,26 @@ use is_executable::is_executable;
 use std::env::{split_paths, var};
 #[allow(unused_imports)]
 use std::io::{self, Write};
+use std::process::Command;
+
+fn external_command_path(command: &str) -> Option<std::path::PathBuf> {
+    let paths = var("PATH").unwrap_or_default();
+
+    split_paths(&paths).find_map(|path| {
+        let file_path = path.join(command);
+        (file_path.is_file() && is_executable(&file_path)).then_some(file_path)
+    })
+}
 
 fn main() {
-    // TODO: Uncomment the code below to pass the first stage
+    let mut input: String = String::new();
+    let builtin_commands = ["exit", "echo", "type"];
 
     loop {
         print!("$ ");
         io::stdout().flush().unwrap();
 
-        let builtin_commands = ["exit", "echo", "type"];
-
-        let mut input: String = String::new();
+        input.clear();
         io::stdin()
             .read_line(&mut input)
             .expect("Couldn't read the input");
@@ -29,24 +38,18 @@ fn main() {
                 if builtin_commands.contains(cmd) {
                     println!("{} is a shell builtin", cmd);
                 } else {
-                    let paths = var("PATH").unwrap_or_default();
-
-                    let file_path = split_paths(&paths).find_map(|path| {
-                        let file = path.join(cmd);
-                        if file.is_file() && is_executable(&file) {
-                            Some(file)
-                        } else {
-                            None
-                        }
-                    });
-
-                    match file_path {
+                    match external_command_path(cmd) {
                         Some(p) => println!("{cmd} is {}", p.display()),
                         None => println!("{}: not found", cmd),
                     }
                 }
             }
-            [unknown_cmd, ..] => println!("{unknown_cmd}: not found"),
+            [cmd, args @ ..] => match external_command_path(cmd) {
+                Some(exe_path) => {
+                    let _ = Command::new(exe_path).args(args).status();
+                }
+                None => println!("{cmd}: not found"),
+            },
         }
     }
 }
