@@ -50,8 +50,8 @@ fn main() {
             ["pwd", ..] => println!("{}", std::env::current_dir().unwrap_or_default().display()),
 
             [cmd, args @ ..] => match external_command_path(cmd) {
-                Some(exe_path) => {
-                    if let Err(e) = Command::new(exe_path).args(args).status() {
+                Some(_) => {
+                    if let Err(e) = Command::new(cmd).args(args).status() {
                         eprintln!("{e}");
                     }
                 }
