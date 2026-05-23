@@ -51,10 +51,18 @@ fn main() {
 
             ["cd", args @ ..] => {
                 let home_dir = var("HOME").unwrap_or_default();
+
+                let expanded_path: String;
+
                 let target = match args.first() {
                     Some(&"~") | None => home_dir.as_str(),
+                    Some(&path) if path.starts_with("~/") => {
+                        expanded_path = path.replacen("~", home_dir.as_str(), 1);
+                        expanded_path.as_str()
+                    }
                     Some(&path) => path,
                 };
+
                 if set_current_dir(target).is_err() {
                     eprintln!("cd: {target}: No such file or directory");
                 };
