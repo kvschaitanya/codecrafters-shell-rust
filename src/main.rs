@@ -50,13 +50,17 @@ fn main() {
             ["pwd", ..] => println!("{}", current_dir().unwrap_or_default().display()),
 
             ["cd", args @ ..] => {
-                let home_dir = var("HOME").unwrap_or_default();
+                let home_dir: String;
 
                 let expanded_path: String;
 
                 let target = match args.first() {
-                    Some(&"~") | None => home_dir.as_str(),
+                    Some(&"~") | None => {
+                        home_dir = var("HOME").unwrap_or_default();
+                        home_dir.as_str()
+                    }
                     Some(&path) if path.starts_with("~/") => {
+                        home_dir = var("HOME").unwrap_or_default();
                         expanded_path = path.replacen("~", home_dir.as_str(), 1);
                         expanded_path.as_str()
                     }
