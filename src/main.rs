@@ -4,6 +4,35 @@ use std::env::{current_dir, set_current_dir, split_paths, var};
 use std::io::{self, Write};
 use std::process::Command;
 
+struct ShellLexer<'a> {
+    chars: std::str::Chars<'a>,
+}
+
+impl<'a> Iterator for ShellLexer<'a> {
+    type Item = String;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut token: String = String::new();
+        let mut is_quoted = false;
+
+        while let Some(c) = self.chars.next() {
+            if c == '\'' {
+                is_quoted = !is_quoted;
+                continue;
+            }
+            if !is_quoted {
+                if c == ' ' && token.is_empty() {
+                    continue;
+                } else if c == ' ' {
+                    break;
+                }
+            }
+            token.push(c);
+        }
+        if token.is_empty() { None } else { Some(token) }
+    }
+}
+
 fn external_command_path(command: &str) -> Option<std::path::PathBuf> {
     let paths = var("PATH").unwrap_or_default();
 
@@ -19,16 +48,20 @@ fn main() {
 
     loop {
         print!("$ ");
-        io::stdout().flush().unwrap();
+        io::stdout().flush().unwrap();.
 
         input.clear();
         io::stdin()
             .read_line(&mut input)
             .expect("Couldn't read the input");
 
-        let command: Vec<&str> = input.split_whitespace().collect();
+        let command: Vec<String> = ShellLexer {
+            chars: input.trim().chars(),
+        }
+        .collect();
 
-        match command.as_slice() {
+        let bridge: Vec<&str> = command.iter().map(|s| s.as_str()).collect();
+        match bridge.as_slice() {
             [] => continue,
             ["exit", ..] => break,
 
@@ -55,11 +88,11 @@ fn main() {
                 let expanded_path: String;
 
                 let target = match args.first() {
-                    Some(&"~") | None => {
+                    None => {
                         home_dir = var("HOME").unwrap_or_default();
                         home_dir.as_str()
                     }
-                    Some(&path) if path.starts_with("~/") => {
+                    Some(&path) if path.starts_with("~") => {
                         home_dir = var("HOME").unwrap_or_default();
                         expanded_path = path.replacen("~", home_dir.as_str(), 1);
                         expanded_path.as_str()
