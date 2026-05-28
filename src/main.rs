@@ -9,7 +9,19 @@ struct ShellLexer<'a> {
 }
 
 impl<'a> ShellLexer<'a> {
-    fn double_quotes(&mut self, token: &mut String) {}
+    fn double_quotes(&mut self, token: &mut String) {
+        while let Some(c) = self.chars.next() {
+            match c {
+                '\\' => {
+                    if let Some(ch) = self.chars.next() {
+                        token.push(ch);
+                    }
+                }
+                '"' => break,
+                _ => token.push(c),
+            }
+        }
+    }
 }
 
 impl<'a> Iterator for ShellLexer<'a> {
@@ -26,8 +38,8 @@ impl<'a> Iterator for ShellLexer<'a> {
                     }
                 }
                 '\'' => token.extend(self.chars.by_ref().take_while(|&ch| ch != '\'')),
-                '"' => token.extend(self.chars.by_ref().take_while(|&ch| ch != '"')),
-                //'"' => self.double_quotes(&mut token),
+                //'"' => token.extend(self.chars.by_ref().take_while(|&ch| ch != '"')),
+                '"' => self.double_quotes(&mut token),
                 ' ' if token.is_empty() => continue,
                 ' ' => break,
                 _ => token.push(c),
