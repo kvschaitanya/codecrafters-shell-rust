@@ -48,7 +48,7 @@ fn main() {
 
     loop {
         print!("$ ");
-        io::stdout().flush().unwrap();.
+        io::stdout().flush().unwrap();
 
         input.clear();
         io::stdin()
