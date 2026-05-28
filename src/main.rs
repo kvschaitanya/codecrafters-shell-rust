@@ -13,7 +13,11 @@ impl<'a> ShellLexer<'a> {
         while let Some(c) = self.chars.next() {
             match c {
                 '\\' => {
-                    if let Some(ch) = self.chars.next() {
+                    let ch = self.chars.next();
+                    if ch.is_none() || (ch != Some('"') && ch != Some('\\')) {
+                        token.push('\\');
+                    }
+                    if let Some(ch) = ch {
                         token.push(ch);
                     }
                 }
