@@ -8,7 +8,9 @@ struct ShellLexer<'a> {
     chars: std::str::Chars<'a>,
 }
 
-impl<'a> ShellLexer<'a> {}
+impl<'a> ShellLexer<'a> {
+    fn double_quotes(&mut self, token: &mut String) {}
+}
 
 impl<'a> Iterator for ShellLexer<'a> {
     type Item = String;
@@ -18,8 +20,14 @@ impl<'a> Iterator for ShellLexer<'a> {
 
         while let Some(c) = self.chars.next() {
             match c {
+                '\\' => {
+                    if let Some(ch) = self.chars.next() {
+                        token.push(ch);
+                    }
+                }
                 '\'' => token.extend(self.chars.by_ref().take_while(|&ch| ch != '\'')),
                 '"' => token.extend(self.chars.by_ref().take_while(|&ch| ch != '"')),
+                //'"' => self.double_quotes(&mut token),
                 ' ' if token.is_empty() => continue,
                 ' ' => break,
                 _ => token.push(c),
