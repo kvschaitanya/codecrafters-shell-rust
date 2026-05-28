@@ -8,26 +8,22 @@ struct ShellLexer<'a> {
     chars: std::str::Chars<'a>,
 }
 
+impl<'a> ShellLexer<'a> {}
+
 impl<'a> Iterator for ShellLexer<'a> {
     type Item = String;
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut token: String = String::new();
-        let mut is_quoted = false;
 
         while let Some(c) = self.chars.next() {
-            if c == '\'' {
-                is_quoted = !is_quoted;
-                continue;
+            match c {
+                '\'' => token.extend(self.chars.by_ref().take_while(|&ch| ch != '\'')),
+                '"' => token.extend(self.chars.by_ref().take_while(|&ch| ch != '"')),
+                ' ' if token.is_empty() => continue,
+                ' ' => break,
+                _ => token.push(c),
             }
-            if !is_quoted {
-                if c == ' ' && token.is_empty() {
-                    continue;
-                } else if c == ' ' {
-                    break;
-                }
-            }
-            token.push(c);
         }
         if token.is_empty() { None } else { Some(token) }
     }
@@ -40,6 +36,18 @@ fn external_command_path(command: &str) -> Option<std::path::PathBuf> {
         let file_path = path.join(command);
         (file_path.is_file() && is_executable(&file_path)).then_some(file_path)
     })
+}
+
+trait LexerExt {
+    fn tokenize(&self) -> ShellLexer<'_>;
+}
+
+impl LexerExt for str {
+    fn tokenize(&self) -> ShellLexer<'_> {
+        ShellLexer {
+            chars: self.chars(),
+        }
+    }
 }
 
 fn main() {
@@ -55,59 +63,46 @@ fn main() {
             .read_line(&mut input)
             .expect("Couldn't read the input");
 
-        let command: Vec<String> = ShellLexer {
-            chars: input.trim().chars(),
-        }
-        .collect();
+        let mut tokens = input.trim().tokenize();
 
-        let bridge: Vec<&str> = command.iter().map(|s| s.as_str()).collect();
-        match bridge.as_slice() {
-            [] => continue,
-            ["exit", ..] => break,
+        match tokens.next().unwrap_or_default().as_str() {
+            "" => continue,
+            "exit" => break,
 
-            ["echo", args @ ..] => {
-                println!("{}", args.join(" "));
+            "echo" => {
+                println!("{}", tokens.collect::<Vec<String>>().join(" "));
             }
 
-            ["type", cmd, ..] => {
-                if builtin_commands.contains(cmd) {
+            "type" => match tokens.next() {
+                Some(cmd) if builtin_commands.contains(&cmd.as_str()) => {
                     println!("{} is a shell builtin", cmd);
-                } else {
-                    match external_command_path(cmd) {
-                        Some(p) => println!("{cmd} is {}", p.display()),
-                        None => println!("{}: not found", cmd),
-                    }
                 }
-            }
+                Some(cmd) => match external_command_path(&cmd) {
+                    Some(p) => println!("{cmd} is {}", p.display()),
+                    None => println!("{}: not found", cmd),
+                },
+                None => println!(": not found"),
+            },
 
-            ["pwd", ..] => println!("{}", current_dir().unwrap_or_default().display()),
+            "pwd" => println!("{}", current_dir().unwrap_or_default().display()),
 
-            ["cd", args @ ..] => {
-                let home_dir: String;
-
-                let expanded_path: String;
-
-                let target = match args.first() {
-                    None => {
-                        home_dir = var("HOME").unwrap_or_default();
-                        home_dir.as_str()
+            "cd" => {
+                let target = match tokens.next() {
+                    None => var("HOME").unwrap_or_default(),
+                    Some(path) if path.starts_with("~") => {
+                        path.replacen("~", var("HOME").unwrap_or_default().as_str(), 1)
                     }
-                    Some(&path) if path.starts_with("~") => {
-                        home_dir = var("HOME").unwrap_or_default();
-                        expanded_path = path.replacen("~", home_dir.as_str(), 1);
-                        expanded_path.as_str()
-                    }
-                    Some(&path) => path,
+                    Some(path) => path.to_string(),
                 };
 
-                if set_current_dir(target).is_err() {
+                if set_current_dir(&target).is_err() {
                     eprintln!("cd: {target}: No such file or directory");
                 };
             }
 
-            [cmd, args @ ..] => match external_command_path(cmd) {
+            cmd => match external_command_path(cmd) {
                 Some(_) => {
-                    if let Err(e) = Command::new(cmd).args(args).status() {
+                    if let Err(e) = Command::new(cmd).args(tokens).status() {
                         eprintln!("{e}");
                     }
                 }
