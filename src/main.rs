@@ -1,5 +1,6 @@
 use is_executable::is_executable;
 use std::fs;
+use std::io::stderr;
 #[allow(unused_imports)]
 use std::io::{self, Write};
 use std::process::Command;
@@ -73,10 +74,16 @@ enum OutputTarget {
     File(String),
 }
 
+enum ErrorTarget {
+    Stderr,
+    File(String),
+}
+
 struct ShellCommand {
     command: String,
     args: Vec<String>,
     output: OutputTarget,
+    error: ErrorTarget,
 }
 
 fn parse_commands(mut tokens: impl Iterator<Item = String>) -> Vec<ShellCommand> {
@@ -85,12 +92,18 @@ fn parse_commands(mut tokens: impl Iterator<Item = String>) -> Vec<ShellCommand>
     while let Some(command) = tokens.next() {
         let mut args: Vec<String> = vec![];
         let mut output = OutputTarget::Stdout;
+        let mut error = ErrorTarget::Stderr;
 
         while let Some(token) = tokens.next() {
             match token.as_str() {
                 ">" | "1>" => {
                     if let Some(file) = tokens.next() {
                         output = OutputTarget::File(file);
+                    }
+                }
+                "2>" => {
+                    if let Some(file) = tokens.next() {
+                        error = ErrorTarget::File(file)
                     }
                 }
                 _ => args.push(token),
@@ -101,6 +114,7 @@ fn parse_commands(mut tokens: impl Iterator<Item = String>) -> Vec<ShellCommand>
             command,
             args,
             output,
+            error,
         });
     }
     commands
@@ -123,11 +137,16 @@ fn execute_command(command: ShellCommand) {
         OutputTarget::File(file) => Box::new(fs::File::create(file).unwrap()),
     };
 
+    let mut error: Box<dyn Write> = match &command.error {
+        ErrorTarget::Stderr => Box::new(io::stderr()),
+        ErrorTarget::File(file) => Box::new(fs::File::create(file).unwrap()),
+    };
+
     match command.command.as_str() {
         "exit" => exit(0),
         "echo" => {
             if let Err(e) = writeln!(output, "{}", command.args.join(" ")) {
-                eprintln!("{e}");
+                writeln!(error, "{}", e);
             }
         }
 
@@ -135,16 +154,18 @@ fn execute_command(command: ShellCommand) {
             for arg in command.args {
                 if builtin_commands.contains(&arg.as_str()) {
                     if let Err(e) = writeln!(output, "{} is a shell builtin", arg) {
-                        eprintln!("{e}");
+                        writeln!(error, "{}", e);
                     }
                 } else {
                     match external_command_path(&arg) {
                         Some(p) => {
                             if let Err(e) = writeln!(output, "{arg} is {}", p.display()) {
-                                eprintln!("{}", e);
+                                writeln!(error, "{}", e);
                             }
                         }
-                        None => eprintln!("{}: not found", arg),
+                        None => {
+                            writeln!(error, "{}: not found", arg);
+                        }
                     }
                 }
             }
@@ -152,7 +173,7 @@ fn execute_command(command: ShellCommand) {
 
         "pwd" => {
             if let Err(e) = writeln!(output, "{}", current_dir().unwrap_or_default().display()) {
-                eprintln!("{e}");
+                writeln!(error, "{e}");
             }
         }
 
@@ -166,7 +187,7 @@ fn execute_command(command: ShellCommand) {
             };
 
             if set_current_dir(&target).is_err() {
-                eprintln!("cd: {target}: No such file or directory");
+                writeln!(error, "cd: {target}: No such file or directory");
             };
         }
 
@@ -176,17 +197,19 @@ fn execute_command(command: ShellCommand) {
                 process.args(command.args);
                 match command.output {
                     OutputTarget::Stdout => process.stdout(io::stdout()),
-                    OutputTarget::File(file) => process.stdout(
-                        fs::File::create(file)
-                            .inspect_err(|e| eprintln!("{e}"))
-                            .unwrap(),
-                    ),
+                    OutputTarget::File(file) => process.stdout(fs::File::create(file).unwrap()),
+                };
+                match command.error {
+                    ErrorTarget::Stderr => process.stderr(io::stderr()),
+                    ErrorTarget::File(file) => process.stderr(fs::File::create(file).unwrap()),
                 };
                 if let Err(e) = process.status() {
-                    eprintln!("{e}");
+                    writeln!(error, "{e}");
                 }
             }
-            None => eprintln!("{cmd}: not found"),
+            None => {
+                writeln!(error, "{cmd}: not found");
+            }
         },
     }
 }
