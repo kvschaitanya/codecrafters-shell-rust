@@ -1,7 +1,7 @@
 use crate::parser::*;
 use is_executable::is_executable;
 use std::fs;
-use std::io::{self, Write, stderr};
+use std::io::{self, Write};
 use std::process::Command;
 use std::{
     env::{current_dir, set_current_dir, split_paths, var},
@@ -23,17 +23,25 @@ pub fn execute_command(command: ShellCommand) {
     let mut output_stream: Box<dyn Write> = match &command.output {
         OutputTarget::Stdout => Box::new(io::stdout()),
         OutputTarget::File(file) => Box::new(fs::File::create(file).unwrap()),
-        OutputTarget::AppendFile(file) => {
-            Box::new(fs::OpenOptions::new().append(true).open(file).unwrap())
-        }
+        OutputTarget::AppendFile(file) => Box::new(
+            fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(file)
+                .unwrap(),
+        ),
     };
 
     let mut error_stream: Box<dyn Write> = match &command.error {
         ErrorTarget::Stderr => Box::new(io::stderr()),
         ErrorTarget::File(file) => Box::new(fs::File::create(file).unwrap()),
-        ErrorTarget::AppendFile(file) => {
-            Box::new(fs::OpenOptions::new().append(true).open(file).unwrap())
-        }
+        ErrorTarget::AppendFile(file) => Box::new(
+            fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(file)
+                .unwrap(),
+        ),
     };
 
     match command.command.as_str() {
