@@ -96,16 +96,24 @@ pub fn execute_command(command: ShellCommand) {
                 match command.output {
                     OutputTarget::Stdout => process.stdout(io::stdout()),
                     OutputTarget::File(file) => process.stdout(fs::File::create(file).unwrap()),
-                    OutputTarget::AppendFile(file) => {
-                        process.stdout(fs::OpenOptions::new().append(true).open(file).unwrap())
-                    }
+                    OutputTarget::AppendFile(file) => process.stdout(
+                        fs::OpenOptions::new()
+                            .append(true)
+                            .create(true)
+                            .open(file)
+                            .unwrap(),
+                    ),
                 };
                 match command.error {
                     ErrorTarget::Stderr => process.stderr(io::stderr()),
                     ErrorTarget::File(file) => process.stderr(fs::File::create(file).unwrap()),
-                    ErrorTarget::AppendFile(file) => {
-                        process.stderr(fs::OpenOptions::new().append(true).open(file).unwrap())
-                    }
+                    ErrorTarget::AppendFile(file) => process.stderr(
+                        fs::OpenOptions::new()
+                            .append(true)
+                            .create(true)
+                            .open(file)
+                            .unwrap(),
+                    ),
                 };
                 if let Err(e) = process.status() {
                     let _ = writeln!(error_stream, "{e}");
