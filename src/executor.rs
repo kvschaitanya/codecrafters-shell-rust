@@ -1,4 +1,4 @@
-use crate::parser::*;
+use crate::{BUILTIN_COMMANDS, parser::*};
 use is_executable::is_executable;
 use std::fs;
 use std::io::{self, Write};
@@ -18,8 +18,6 @@ fn external_command_path(command: &str) -> Option<std::path::PathBuf> {
 }
 
 pub fn execute_command(command: ShellCommand) {
-    let builtin_commands = ["exit", "echo", "type", "pwd", "cd"];
-
     let mut output_stream: Box<dyn Write> = match &command.output {
         OutputTarget::Stdout => Box::new(io::stdout()),
         OutputTarget::File(file) => Box::new(fs::File::create(file).unwrap()),
@@ -54,7 +52,7 @@ pub fn execute_command(command: ShellCommand) {
 
         "type" => {
             for arg in command.args {
-                if builtin_commands.contains(&arg.as_str()) {
+                if BUILTIN_COMMANDS.contains(&arg.as_str()) {
                     if let Err(e) = writeln!(output_stream, "{} is a shell builtin", arg) {
                         let _ = writeln!(error_stream, "{}", e);
                     }
