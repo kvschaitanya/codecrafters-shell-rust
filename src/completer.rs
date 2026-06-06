@@ -21,7 +21,7 @@ impl Completer for ShellCompleter {
             BUILTIN_COMMANDS
                 .iter()
                 .filter(|command| command.starts_with(word))
-                .map(|&cmd| cmd.to_owned())
+                .map(|&cmd| format!("{cmd} "))
                 .collect(),
         ))
     }
