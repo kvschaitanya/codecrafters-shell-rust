@@ -12,18 +12,16 @@ impl Completer for ShellCompleter {
         &self, // FIXME should be `&mut self`
         line: &str,
         pos: usize,
-        ctx: &rustyline::Context<'_>,
+        _ctx: &rustyline::Context<'_>,
     ) -> rustyline::Result<(usize, Vec<Self::Candidate>)> {
         let word = line.split(' ').next_back().unwrap();
 
         Ok((
-            pos - word.chars().count(),
+            pos - word.len(),
             BUILTIN_COMMANDS
                 .iter()
-                .filter_map(|&command| match command.starts_with(word) {
-                    true => Some(command.to_owned()),
-                    false => None,
-                })
+                .filter(|command| command.starts_with(word))
+                .map(|&cmd| cmd.to_owned())
                 .collect(),
         ))
     }

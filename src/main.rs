@@ -22,16 +22,15 @@ fn main() {
         let input = match editor.readline("$ ") {
             Ok(input) => input,
             Err(ReadlineError::Interrupted) => {
-                println!("^C");
                 continue;
             }
             Err(ReadlineError::Eof) => {
-                println!("^D");
+                println!("exit");
                 break;
             }
             Err(e) => {
-                println!("{:?}", e);
-                break;
+                println!("shell error: {:?}", e);
+                continue;
             }
         };
 
